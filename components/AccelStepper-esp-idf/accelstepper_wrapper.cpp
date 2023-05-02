@@ -1,0 +1,69 @@
+#include "accelstepper_wrapper.h"
+#include "AccelStepper.h"
+
+
+AccelStepperWrapper accelstepper_create(int motorInterfaceType, int stepPin, int dirPin) {
+    return new AccelStepper(motorInterfaceType, static_cast<gpio_num_t>(stepPin), static_cast<gpio_num_t>(dirPin));
+}
+
+extern "C" void accelstepper_destroy(AccelStepperWrapper stepper) {
+    static_cast<AccelStepper*>(stepper)->destroy();
+}
+
+void accelstepper_move_to(AccelStepperWrapper stepper, long absolute) {
+    static_cast<AccelStepper*>(stepper)->moveTo(absolute);
+}
+
+void accelstepper_set_speed(AccelStepperWrapper stepper, float speed) {
+    static_cast<AccelStepper*>(stepper)->setSpeed(speed);
+}
+
+void accelstepper_run_speed(AccelStepperWrapper stepper) {
+    static_cast<AccelStepper*>(stepper)->runSpeed();
+}
+void accelstepper_set_max_speed(AccelStepperWrapper stepper, float max_speed) {
+    ((AccelStepper *)stepper)->setMaxSpeed(max_speed);
+}
+
+void accelstepper_set_acceleration(AccelStepperWrapper stepper, float acceleration) {
+    ((AccelStepper *)stepper)->setAcceleration(acceleration);
+}
+
+long accelstepper_distance_to_go(AccelStepperWrapper stepper) {
+    return ((AccelStepper *)stepper)->distanceToGo();
+}
+
+void accelstepper_run(AccelStepperWrapper stepper) {
+    ((AccelStepper *)stepper)->run();
+}
+long accelstepper_current_position(AccelStepperWrapper stepper) {
+    return ((AccelStepper *)stepper)->currentPosition();
+}
+
+    float accelstepper_max_speed(AccelStepperWrapper stepper) {
+        return ((AccelStepper *)stepper)->maxSpeed();
+    }
+
+
+
+#include "MultiStepper.h"
+
+MultiStepperWrapper multistepper_create() {
+    return new MultiStepper();
+}
+
+void multistepper_destroy(MultiStepperWrapper multi_stepper) {
+    delete static_cast<MultiStepper*>(multi_stepper);
+}
+
+int multistepper_add_stepper(MultiStepperWrapper multi_stepper, AccelStepperWrapper stepper) {
+    return static_cast<MultiStepper*>(multi_stepper)->addStepper(*static_cast<AccelStepper*>(stepper));
+}
+
+//int multistepper_set_positions(MultiStepperWrapper multi_stepper, long* positions, int num_positions) {
+    //return static_cast<MultiStepper*>(multi_stepper)->setPositions(positions, num_positions);
+//}
+
+int multistepper_run(MultiStepperWrapper multi_stepper) {
+    return static_cast<MultiStepper*>(multi_stepper)->run();
+}
