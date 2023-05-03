@@ -14,6 +14,11 @@
 #define LEDC_FREQUENCY 5000
 #define LEDC_RESOLUTION LEDC_TIMER_12_BIT
 
+int32_t nouv_position = 0;
+
+void updateTargetPosition(int32_t new_position) {
+    nouv_position = new_position;
+}
 static void
 configureGPIO();
 
@@ -141,6 +146,18 @@ setStepperAcceleration(UA_Server *server,
 
     return UA_STATUSCODE_GOOD;
 }*/
+/*
+UA_StatusCode 
+setStepperSpeed(UA_Server *server,
+                               const UA_NodeId *sessionId, void *sessionContext,
+                               const UA_NodeId *nodeId, void *nodeContext,
+                               const UA_NumericRange *range, const UA_DataValue *data) {
+    AccelStepperWrapper *stepper = (AccelStepperWrapper *)nodeContext;
+    float new_speed = *(UA_Float *)data->value.data;
+    accelstepper_set_max_speed(stepper, new_speed);
+
+    return UA_STATUSCODE_GOOD;
+}*/
 
 UA_StatusCode 
 readStepperPosition(UA_Server *server,
@@ -149,6 +166,12 @@ readStepperPosition(UA_Server *server,
                                   UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
                                   UA_DataValue *dataValue) {
     AccelStepperWrapper *stepper = (AccelStepperWrapper *)nodeContext;
+
+    if (stepper == NULL) {
+        UA_LOG_WARNING(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "Stepper pointer is NULL");
+        return UA_STATUSCODE_BADINTERNALERROR;
+    }
+
     int32_t position = accelstepper_current_position(stepper);
 
     UA_Variant_setScalarCopy(&dataValue->value, &position, &UA_TYPES[UA_TYPES_INT32]);
@@ -166,19 +189,19 @@ setStepperPosition(UA_Server *server,
     // Obtenez la nouvelle position à partir des données
     int32_t new_position = *(UA_Int32 *)data->value.data;
 
-    // Déplacez le moteur vers la nouvelle position
-    accelstepper_move_to(stepper, new_position);
-
+    updateTargetPosition(new_position);
+    
     // Vérifiez si la position du moteur a été mise à jour correctement
-    int32_t current_position = accelstepper_current_position(stepper);
-    UA_StatusCode status = (current_position == new_position) ? UA_STATUSCODE_GOOD : UA_STATUSCODE_BADINTERNALERROR;
+    //int32_t current_position = accelstepper_current_position(stepper);
+    UA_StatusCode status = UA_STATUSCODE_GOOD; //: UA_STATUSCODE_BADINTERNALERROR;
+    //(current_position == new_position)
 
     return status;
 
     /*---------------------------*/
 }
 /*------------------------------*/
-void addStepperControlNode(UA_Server *server) {
+void addStepperControlNode(UA_Server *server, AccelStepperWrapper *stepper) {
     UA_VariableAttributes attr = UA_VariableAttributes_default;
     attr.displayName = UA_LOCALIZEDTEXT("en-US", "Stepper Position");
     attr.dataType = UA_TYPES[UA_TYPES_INT32].typeId;
@@ -193,11 +216,27 @@ void addStepperControlNode(UA_Server *server) {
     UA_DataSource stepperDataSource;
     stepperDataSource.read = readStepperPosition;
     stepperDataSource.write = setStepperPosition;
-
+/*
     UA_Server_addDataSourceVariableNode(server, currentNodeId, parentNodeId,
                                         parentReferenceNodeId, currentName,
                                         variableTypeNodeId, attr,
-                                        stepperDataSource, NULL, NULL);
+                                        stepperDataSource, NULL, NULL);*/
+    UA_StatusCode retval = UA_Server_addDataSourceVariableNode(server, currentNodeId,
+                                                        UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
+                                                        UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
+                                                        UA_QUALIFIEDNAME(1, "Control Stepper Position"),
+                                                        UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE),attr, stepperDataSource, (void *)stepper, NULL);
+                                                        //(void *)stepper
+                                     
+
+    ESP_LOGI("retval", "%08x", retval);
+if (retval != UA_STATUSCODE_GOOD) {
+    UA_LOG_WARNING(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND,
+                   "Failed to add stepper position node, error: 0x%08x", retval);
+} else {
+    UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "Stepper position node added successfully");
+}
+
 }
 /*--------------------------------------------------*/
 /*UA_StatusCode readStepperPosition(UA_Server *server,

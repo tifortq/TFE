@@ -19,6 +19,7 @@
 #define STEP_PIN 33
 #define DIR_PIN  4
 AccelStepperWrapper *stepper = NULL;
+extern int32_t nouv_position;
 
 /*-----------------------*/
 
@@ -60,12 +61,44 @@ SemaphoreHandle_t get_accel_stepper_mutex() {
 }*/
 /*------------------------------*/
 
+
 void step_init(void){
     
     stepper = accelstepper_create(1, STEP_PIN, DIR_PIN);
+    accelstepper_set_max_speed(stepper, 50); // Vitesse maximale en pas par seconde
+    accelstepper_set_acceleration(stepper, 10);
     ESP_LOGI("Step Init", "Stepper object: %p", (void *)stepper);
 }
+void updateStepperMotor(AccelStepperWrapper *stepper) {
+    accelstepper_move_to(stepper, nouv_position);
+    while (nouv_position != accelstepper_current_position(stepper)) {
+        
+        accelstepper_run(stepper);
+    }
+    //ESP_LOGI("Step Init", "position %p", nouv_position);
+    
+}
+void moveStepperNonBlocking(AccelStepperWrapper *stepper) {
+    if (nouv_position != accelstepper_current_position(stepper)) {
+        accelstepper_move_to(stepper, nouv_position);
+        accelstepper_run(stepper);
+    }
+}
+
+
+
 /*------------------------------------------*/
+/*Creation de nouvelle tache*/
+void stepper_task(void *arg) {
+    AccelStepperWrapper *stepper = (AccelStepperWrapper *)arg;
+
+    while (1) {
+        updateStepperMotor(stepper);
+        vTaskDelay(pdMS_TO_TICKS(50)); // Attendez 50 ms avant de répéter la boucle
+    }
+}
+
+/*---------------------*/
 void pwm_init(void) {
     ledc_timer_config_t timer_config = {
         .speed_mode = LEDC_MODE,
@@ -130,6 +163,7 @@ UA_ServerConfig_setUriName(UA_ServerConfig *uaServerConfig, const char *uri, con
 static void opcua_task(void *arg)
 {
     // BufferSize's got to be decreased due to latest refactorings in open62541 v1.2rc.
+    step_init();
     UA_Int32 sendBufferSize = 16384;
     UA_Int32 recvBufferSize = 16384;
 
@@ -179,7 +213,7 @@ static void opcua_task(void *arg)
     addAnalogControlNode(server);
     addRelay0ControlNode(server);
     addRelay1ControlNode(server);
-    addStepperControlNode(server);
+    addStepperControlNode(server,stepper);
 
     ESP_LOGI(TAG, "Heap Left : %d", xPortGetFreeHeapSize());
     UA_StatusCode retval = UA_Server_run_startup(server);
@@ -282,7 +316,7 @@ void app_main(void)
     
     
     /*---------------------------------------------------------------*/
-    step_init();
+    
     nvs_flash_init();
     pwm_init();
     {
@@ -303,5 +337,5 @@ void app_main(void)
     }
     
     connection_scan();
-    
+    xTaskCreatePinnedToCore(stepper_task, "stepper_task", 2048, (void *)stepper, 6, NULL, 0);
 }

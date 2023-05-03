@@ -14,7 +14,7 @@ extern "C" void accelstepper_destroy(AccelStepperWrapper stepper) {
     static_cast<AccelStepper*>(stepper)->destroy();
 }
 
-void accelstepper_move_to(AccelStepperWrapper stepper, long absolute) {
+void accelstepper_move_to(AccelStepperWrapper stepper, int32_t absolute) {
     static_cast<AccelStepper*>(stepper)->moveTo(absolute);
 }
 
@@ -48,9 +48,9 @@ extern "C" {
     SemaphoreHandle_t get_accel_stepper_mutex();
 }
 
-long accelstepper_current_position(AccelStepperWrapper *stepper) {
+int32_t accelstepper_current_position(AccelStepperWrapper stepper) {
     xSemaphoreTake(get_accel_stepper_mutex(), portMAX_DELAY);
-    long position = static_cast<AccelStepper*>(*stepper)->currentPosition();
+    int32_t position = static_cast<AccelStepper*>(stepper)->currentPosition();
     xSemaphoreGive(get_accel_stepper_mutex());
     return position;
 }

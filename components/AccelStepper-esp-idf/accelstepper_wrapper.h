@@ -1,6 +1,6 @@
 #ifndef ACCELSTEPPER_WRAPPER_H
 #define ACCELSTEPPER_WRAPPER_H
-
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -9,7 +9,7 @@ typedef void* AccelStepperWrapper;
 
 AccelStepperWrapper accelstepper_create(int motorInterfaceType, int stepPin, int dirPin);
 void accelstepper_destroy(AccelStepperWrapper stepper);
-void accelstepper_move_to(AccelStepperWrapper stepper, long absolute);
+void accelstepper_move_to(AccelStepperWrapper stepper, int32_t absolute);
 void accelstepper_set_speed(AccelStepperWrapper stepper, float speed);
 void accelstepper_run_speed(AccelStepperWrapper stepper);
 void accelstepper_set_max_speed(AccelStepperWrapper stepper, float max_speed);
@@ -17,7 +17,7 @@ void accelstepper_set_acceleration(AccelStepperWrapper stepper, float accelerati
 long accelstepper_distance_to_go(AccelStepperWrapper stepper);
 void accelstepper_run(AccelStepperWrapper stepper);
 
-long accelstepper_current_position(AccelStepperWrapper *stepper);
+int32_t accelstepper_current_position(AccelStepperWrapper stepper);
 
 float accelstepper_max_speed(AccelStepperWrapper stepper);
 

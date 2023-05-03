@@ -21,7 +21,10 @@
 
 // void
 // addLEDMethod(UA_Server *server);
-
+/*-----------------*/
+extern int32_t nouv_position;
+void updateTargetPosition(int32_t new_position);
+/*----------------------*/
 /* Temperature */
 UA_StatusCode
 readCurrentTemperature(UA_Server *server,
@@ -79,7 +82,7 @@ readStepperPosition(UA_Server *server,
                     UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
                     UA_DataValue *dataValue);
 
-void addStepperControlNode(UA_Server *server);
+void addStepperControlNode(UA_Server *server, AccelStepperWrapper *stepper);
 
 /*appel analogique*/
 UA_StatusCode
