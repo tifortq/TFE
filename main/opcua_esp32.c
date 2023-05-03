@@ -19,7 +19,16 @@
 #define STEP_PIN 33
 #define DIR_PIN  4
 AccelStepperWrapper *stepper = NULL;
+
 /*-----------------------*/
+
+
+SemaphoreHandle_t accelStepperMutex;
+
+SemaphoreHandle_t get_accel_stepper_mutex() {
+    return accelStepperMutex;
+}
+/*---------------------*/
 /*void stepper_task(void *arg)
 {
     // Initialisez la bibliothèque AccelStepper
@@ -54,6 +63,7 @@ AccelStepperWrapper *stepper = NULL;
 void step_init(void){
     
     stepper = accelstepper_create(1, STEP_PIN, DIR_PIN);
+    ESP_LOGI("Step Init", "Stepper object: %p", (void *)stepper);
 }
 /*------------------------------------------*/
 void pwm_init(void) {
@@ -264,6 +274,9 @@ static void connection_scan(void)
 
 void app_main(void)
 {
+    /*----------------------------*/
+    accelStepperMutex = xSemaphoreCreateMutex();
+    /*-----------------------------*/
     ++boot_count;
     // Workaround for CVE-2019-15894
     

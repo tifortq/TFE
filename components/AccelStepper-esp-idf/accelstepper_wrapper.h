@@ -16,7 +16,9 @@ void accelstepper_set_max_speed(AccelStepperWrapper stepper, float max_speed);
 void accelstepper_set_acceleration(AccelStepperWrapper stepper, float acceleration);
 long accelstepper_distance_to_go(AccelStepperWrapper stepper);
 void accelstepper_run(AccelStepperWrapper stepper);
-long accelstepper_current_position(AccelStepperWrapper stepper);
+
+long accelstepper_current_position(AccelStepperWrapper *stepper);
+
 float accelstepper_max_speed(AccelStepperWrapper stepper);
 
 typedef void* MultiStepperWrapper;

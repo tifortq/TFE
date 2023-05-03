@@ -1,5 +1,9 @@
 #include "accelstepper_wrapper.h"
 #include "AccelStepper.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+/*-----------*/
+#include "freertos/semphr.h"
 
 
 AccelStepperWrapper accelstepper_create(int motorInterfaceType, int stepPin, int dirPin) {
@@ -36,8 +40,19 @@ long accelstepper_distance_to_go(AccelStepperWrapper stepper) {
 void accelstepper_run(AccelStepperWrapper stepper) {
     ((AccelStepper *)stepper)->run();
 }
+/*
 long accelstepper_current_position(AccelStepperWrapper stepper) {
     return ((AccelStepper *)stepper)->currentPosition();
+}*/
+extern "C" {
+    SemaphoreHandle_t get_accel_stepper_mutex();
+}
+
+long accelstepper_current_position(AccelStepperWrapper *stepper) {
+    xSemaphoreTake(get_accel_stepper_mutex(), portMAX_DELAY);
+    long position = static_cast<AccelStepper*>(*stepper)->currentPosition();
+    xSemaphoreGive(get_accel_stepper_mutex());
+    return position;
 }
 
     float accelstepper_max_speed(AccelStepperWrapper stepper) {
