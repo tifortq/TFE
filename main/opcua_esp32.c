@@ -20,7 +20,7 @@
 #define DIR_PIN  4
 AccelStepperWrapper *stepper = NULL;
 extern int32_t nouv_position;
-
+float speed = 0;
 /*-----------------------*/
 
 
@@ -65,38 +65,43 @@ SemaphoreHandle_t get_accel_stepper_mutex() {
 void step_init(void){
     
     stepper = accelstepper_create(1, STEP_PIN, DIR_PIN);
-    accelstepper_set_max_speed(stepper, 50); // Vitesse maximale en pas par seconde
-    accelstepper_set_acceleration(stepper, 10);
+    //accelstepper_set_max_speed(stepper, 50); // Vitesse maximale en pas par seconde
+    //accelstepper_set_acceleration(stepper, 10);
     ESP_LOGI("Step Init", "Stepper object: %p", (void *)stepper);
 }
 void updateStepperMotor(AccelStepperWrapper *stepper) {
-    accelstepper_move_to(stepper, nouv_position);
-    while (nouv_position != accelstepper_current_position(stepper)) {
-        
-        accelstepper_run(stepper);
+     int32_t current_position = accelstepper_current_position(stepper);
+
+    if (nouv_position != current_position) {
+        speed = (nouv_position > current_position) ? 1000 : -1000;
+    } 
+    else {
+        speed = 0;
     }
-    //ESP_LOGI("Step Init", "position %p", nouv_position);
+
+    accelstepper_set_speed(stepper, speed);
+    accelstepper_run_speed(stepper);
+}
+void timer_callback(TimerHandle_t xTimer) { //timer créer dans le main pour appeler updatesteppermotor tous les X temps
+    updateStepperMotor(stepper);
+}
+
     
-}
-void moveStepperNonBlocking(AccelStepperWrapper *stepper) {
-    if (nouv_position != accelstepper_current_position(stepper)) {
-        accelstepper_move_to(stepper, nouv_position);
-        accelstepper_run(stepper);
-    }
-}
+
+
 
 
 
 /*------------------------------------------*/
 /*Creation de nouvelle tache*/
-void stepper_task(void *arg) {
+/*void stepper_task(void *arg) {
     AccelStepperWrapper *stepper = (AccelStepperWrapper *)arg;
 
     while (1) {
         updateStepperMotor(stepper);
-        vTaskDelay(pdMS_TO_TICKS(50)); // Attendez 50 ms avant de répéter la boucle
+        vTaskDelay(pdMS_TO_TICKS(1)); // Attendez 50 ms avant de répéter la boucle
     }
-}
+}*/
 
 /*---------------------*/
 void pwm_init(void) {
@@ -321,7 +326,7 @@ void app_main(void)
     pwm_init();
     {
         /*--------------------------------------------------*/
-    //xTaskCreate(stepper_task, "stepper_task", 4096, NULL, 5, NULL);
+   
 }
 
     if (esp_flash_encryption_enabled())
@@ -337,5 +342,8 @@ void app_main(void)
     }
     
     connection_scan();
-    xTaskCreatePinnedToCore(stepper_task, "stepper_task", 2048, (void *)stepper, 6, NULL, 0);
+
+    //xTaskCreatePinnedToCore(updateStepperMotor, "stepper_task", 2048, (void *)stepper, 5, NULL, 0);
+    TimerHandle_t update_timer = xTimerCreate("updateStepperMotorTimer", pdMS_TO_TICKS(10), pdTRUE, NULL, timer_callback);//création d'un timer,(nomtimer,periode timer,true si timer doit de repeter,pointeur,fonction rappel a chaque fois que timer expire)
+    xTimerStart(update_timer, 0);//commencer timer directement
 }
