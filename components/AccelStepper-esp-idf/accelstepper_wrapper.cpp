@@ -21,6 +21,15 @@ void accelstepper_move_to(AccelStepperWrapper stepper, int32_t absolute) {
 void accelstepper_set_speed(AccelStepperWrapper stepper, float speed) {
     static_cast<AccelStepper*>(stepper)->setSpeed(speed);
 }
+/*
+void accelstepper_move(AccelStepperWrapper *stepper, int32_t relative_steps) {
+    if (stepper && stepper->accelstepper) {
+        stepper->accelstepper->move(relative_steps);
+    }
+}*/
+void accelstepper_move(AccelStepperWrapper stepper, int32_t relative_steps) {
+    static_cast<AccelStepper*>(stepper)->move(relative_steps);
+}
 
 void accelstepper_run_speed(AccelStepperWrapper stepper) {
     static_cast<AccelStepper*>(stepper)->runSpeed();
@@ -40,6 +49,11 @@ long accelstepper_distance_to_go(AccelStepperWrapper stepper) {
 void accelstepper_run(AccelStepperWrapper stepper) {
     ((AccelStepper *)stepper)->run();
 }
+/*void accelstepper_run_to_new_position(AccelStepperWrapper stepper, int32_t position) {
+    if (stepper) {
+        static_cast<AccelStepper*>(stepper)->runToNewPosition(position);
+    }
+}*/
 /*
 long accelstepper_current_position(AccelStepperWrapper stepper) {
     return ((AccelStepper *)stepper)->currentPosition();

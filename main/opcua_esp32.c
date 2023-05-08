@@ -1,131 +1,11 @@
 #include "opcua_esp32.h"
 
-
 #define EXAMPLE_ESP_MAXIMUM_RETRY 10
 
 #define TAG "OPCUA_ESP32"
 #define SNTP_TAG "SNTP"
 #define MEMORY_TAG "MEMORY"
 #define ENABLE_MDNS 1
-#define PWM_GPIO 33
-#define LEDC_TIMER 0
-#define LEDC_MODE LEDC_HIGH_SPEED_MODE
-#define LEDC_CHANNEL LEDC_CHANNEL_0
-#define LEDC_FREQUENCY 5000
-#define LEDC_RESOLUTION LEDC_TIMER_12_BIT
-
-/*--------------*/
-
-#define STEP_PIN 33
-#define DIR_PIN  4
-AccelStepperWrapper *stepper = NULL;
-extern int32_t nouv_position;
-float speed = 0;
-/*-----------------------*/
-
-
-SemaphoreHandle_t accelStepperMutex;
-
-SemaphoreHandle_t get_accel_stepper_mutex() {
-    return accelStepperMutex;
-}
-/*---------------------*/
-/*void stepper_task(void *arg)
-{
-    // Initialisez la bibliothèque AccelStepper
-     AccelStepperWrapper* stepper = accelstepper_create(1, STEP_PIN, DIR_PIN);
-
-    // Configurez la vitesse et l'accélération du moteur
-    accelstepper_set_max_speed(stepper, 600); // Vitesse maximale en pas par seconde
-    accelstepper_set_acceleration(stepper, 300); // Accélération en pas par seconde au carré
-
-    // Définissez la position cible en pas
-    long target_position = 800;
-
-
-    while (1) {
-        // Vérifiez si le moteur a atteint sa position cible
-        accelstepper_move_to(stepper, accelstepper_current_position(stepper) + target_position);
-            // Inversez la direction en changeant la position cible
-            while (accelstepper_distance_to_go(stepper) != 0) {
-            accelstepper_run(stepper);
-            vTaskDelay(pdMS_TO_TICKS(10));
-        }
-
-        target_position = -target_position; // Inversez la direction
-    }
-
-
-    // Libérez les ressources allouées au stepper (ne sera jamais appelé dans cet exemple)
-    accelstepper_destroy(stepper);
-}*/
-/*------------------------------*/
-
-
-void step_init(void){
-    
-    stepper = accelstepper_create(1, STEP_PIN, DIR_PIN);
-    //accelstepper_set_max_speed(stepper, 50); // Vitesse maximale en pas par seconde
-    //accelstepper_set_acceleration(stepper, 10);
-    ESP_LOGI("Step Init", "Stepper object: %p", (void *)stepper);
-}
-void updateStepperMotor(AccelStepperWrapper *stepper) {
-     int32_t current_position = accelstepper_current_position(stepper);
-
-    if (nouv_position != current_position) {
-        speed = (nouv_position > current_position) ? 1000 : -1000;
-    } 
-    else {
-        speed = 0;
-    }
-
-    accelstepper_set_speed(stepper, speed);
-    accelstepper_run_speed(stepper);
-}
-void timer_callback(TimerHandle_t xTimer) { //timer créer dans le main pour appeler updatesteppermotor tous les X temps
-    updateStepperMotor(stepper);
-}
-
-    
-
-
-
-
-
-/*------------------------------------------*/
-/*Creation de nouvelle tache*/
-/*void stepper_task(void *arg) {
-    AccelStepperWrapper *stepper = (AccelStepperWrapper *)arg;
-
-    while (1) {
-        updateStepperMotor(stepper);
-        vTaskDelay(pdMS_TO_TICKS(1)); // Attendez 50 ms avant de répéter la boucle
-    }
-}*/
-
-/*---------------------*/
-void pwm_init(void) {
-    ledc_timer_config_t timer_config = {
-        .speed_mode = LEDC_MODE,
-        .duty_resolution = LEDC_RESOLUTION,
-        .timer_num = LEDC_TIMER,
-        .freq_hz = LEDC_FREQUENCY,
-        .clk_cfg = LEDC_AUTO_CLK
-    };
-    ledc_timer_config(&timer_config);
-
-    ledc_channel_config_t channel_config = {
-        .gpio_num = PWM_GPIO,
-        .speed_mode = LEDC_MODE,
-        .channel = LEDC_CHANNEL,
-        .intr_type = LEDC_INTR_DISABLE,
-        .timer_sel = LEDC_TIMER,
-        .duty = 0,
-        .hpoint = 0
-    };
-    ledc_channel_config(&channel_config);
-
-}
 
 static bool obtain_time(void);
 static void initialize_sntp(void);
@@ -137,7 +17,24 @@ static UA_Boolean isServerCreated = false;
 RTC_DATA_ATTR static int boot_count = 0;
 static struct tm timeinfo;
 static time_t now = 0;
+/*-----*/
+AccelStepperWrapper *stepper = NULL;
+#define STEP_PIN 33
+#define DIR_PIN  4
+void step_init(void){
+    
+    AccelStepperWrapper *stepper = accelstepper_create(1, STEP_PIN, DIR_PIN);
+    accelstepper_set_max_speed(stepper, 1000); // Vitesse maximale en pas par seconde
+    accelstepper_set_acceleration(stepper, 400);
+}
+SemaphoreHandle_t accelStepperMutex;
 
+SemaphoreHandle_t get_accel_stepper_mutex() {
+    return accelStepperMutex;
+}
+extern int32_t nouv_position;
+extern bool is_new_position_set;
+/*-------*/ 
 static UA_StatusCode
 UA_ServerConfig_setUriName(UA_ServerConfig *uaServerConfig, const char *uri, const char *name)
 {
@@ -161,14 +58,13 @@ UA_ServerConfig_setUriName(UA_ServerConfig *uaServerConfig, const char *uri, con
         UA_LocalizedText_copy(&uaServerConfig->applicationDescription.applicationName,
                               &uaServerConfig->endpoints[i].server.applicationName);
     }
-//.
+
     return UA_STATUSCODE_GOOD;
 }
 
 static void opcua_task(void *arg)
 {
     // BufferSize's got to be decreased due to latest refactorings in open62541 v1.2rc.
-    step_init();
     UA_Int32 sendBufferSize = 16384;
     UA_Int32 recvBufferSize = 16384;
 
@@ -215,8 +111,9 @@ static void opcua_task(void *arg)
     UA_ServerConfig_setCustomHostname(config, hostName);
 
     /* Add Information Model Objects Here */
-    addAnalogControlNode(server);
-    addRelay0ControlNode(server);
+    step_init();
+    //addCurrentTemperatureDataSourceVariable(server);
+    //addRelay0ControlNode(server);
     addRelay1ControlNode(server);
     addStepperControlNode(server,stepper);
 
@@ -313,22 +210,11 @@ static void connection_scan(void)
 
 void app_main(void)
 {
-    /*----------------------------*/
     accelStepperMutex = xSemaphoreCreateMutex();
-    /*-----------------------------*/
     ++boot_count;
+    
     // Workaround for CVE-2019-15894
-    
-    
-    /*---------------------------------------------------------------*/
-    
     nvs_flash_init();
-    pwm_init();
-    {
-        /*--------------------------------------------------*/
-   
-}
-
     if (esp_flash_encryption_enabled())
     {
         esp_flash_write_protect_crypt_cnt();
@@ -340,10 +226,5 @@ void app_main(void)
         ESP_ERROR_CHECK(nvs_flash_erase());
         ESP_ERROR_CHECK(nvs_flash_init());
     }
-    
     connection_scan();
-
-    //xTaskCreatePinnedToCore(updateStepperMotor, "stepper_task", 2048, (void *)stepper, 5, NULL, 0);
-    TimerHandle_t update_timer = xTimerCreate("updateStepperMotorTimer", pdMS_TO_TICKS(10), pdTRUE, NULL, timer_callback);//création d'un timer,(nomtimer,periode timer,true si timer doit de repeter,pointeur,fonction rappel a chaque fois que timer expire)
-    xTimerStart(update_timer, 0);//commencer timer directement
 }
