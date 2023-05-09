@@ -23,9 +23,10 @@ AccelStepperWrapper *stepper = NULL;
 #define DIR_PIN  4
 void step_init(void){
     
-    AccelStepperWrapper *stepper = accelstepper_create(1, STEP_PIN, DIR_PIN);
+    stepper = accelstepper_create(1, STEP_PIN, DIR_PIN);
     accelstepper_set_max_speed(stepper, 1000); // Vitesse maximale en pas par seconde
     accelstepper_set_acceleration(stepper, 400);
+    ESP_LOGI("Step Init", "Stepper object: %p", (void *)stepper);
 }
 SemaphoreHandle_t accelStepperMutex;
 
@@ -35,6 +36,35 @@ SemaphoreHandle_t get_accel_stepper_mutex() {
 extern int32_t nouv_position;
 extern bool is_new_position_set;
 /*-------*/ 
+/*void stepper_task(void *arg)
+{
+    // Initialisez la bibliothèque AccelStepper
+     AccelStepperWrapper* stepper = accelstepper_create(1, STEP_PIN, DIR_PIN);
+
+    // Configurez la vitesse et l'accélération du moteur
+    accelstepper_set_max_speed(stepper, 1000); // Vitesse maximale en pas par seconde
+    accelstepper_set_acceleration(stepper, 400); // Accélération en pas par seconde au carré
+
+    // Définissez la position cible en pas
+    long target_position = 800;
+
+
+    while (1) {
+        // Vérifiez si le moteur a atteint sa position cible
+        accelstepper_move_to(stepper, accelstepper_current_position(stepper) + target_position);
+            // Inversez la direction en changeant la position cible
+            while (accelstepper_distance_to_go(stepper) != 0) {
+            accelstepper_run(stepper);
+            vTaskDelay(pdMS_TO_TICKS(10));
+        }
+
+        target_position = -target_position; // Inversez la direction
+    }
+
+
+    // Libérez les ressources allouées au stepper (ne sera jamais appelé dans cet exemple)
+    accelstepper_destroy(stepper);
+}*/
 static UA_StatusCode
 UA_ServerConfig_setUriName(UA_ServerConfig *uaServerConfig, const char *uri, const char *name)
 {
@@ -65,6 +95,7 @@ UA_ServerConfig_setUriName(UA_ServerConfig *uaServerConfig, const char *uri, con
 static void opcua_task(void *arg)
 {
     // BufferSize's got to be decreased due to latest refactorings in open62541 v1.2rc.
+    step_init();
     UA_Int32 sendBufferSize = 16384;
     UA_Int32 recvBufferSize = 16384;
 
@@ -111,11 +142,16 @@ static void opcua_task(void *arg)
     UA_ServerConfig_setCustomHostname(config, hostName);
 
     /* Add Information Model Objects Here */
-    step_init();
+    
     //addCurrentTemperatureDataSourceVariable(server);
     //addRelay0ControlNode(server);
     addRelay1ControlNode(server);
-    addStepperControlNode(server,stepper);
+    
+    UA_StatusCode result = addStepperControlNode(server,stepper);
+if(result != UA_STATUSCODE_GOOD) {
+    ESP_LOGE(TAG, "Erreur lors de l'ajout du nœud moteur pas à pas : 0x%08x", result);
+}
+
 
     ESP_LOGI(TAG, "Heap Left : %d", xPortGetFreeHeapSize());
     UA_StatusCode retval = UA_Server_run_startup(server);
@@ -211,6 +247,7 @@ static void connection_scan(void)
 void app_main(void)
 {
     accelStepperMutex = xSemaphoreCreateMutex();
+    
     ++boot_count;
     
     // Workaround for CVE-2019-15894
@@ -227,4 +264,5 @@ void app_main(void)
         ESP_ERROR_CHECK(nvs_flash_init());
     }
     connection_scan();
+    //xTaskCreatePinnedToCore(stepper_task, "stepper_task", 2048, (void *)stepper, 5, NULL, 0);
 }

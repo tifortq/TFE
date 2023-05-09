@@ -34,10 +34,11 @@ readStepperPosition(UA_Server *server,
                     UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
                     UA_DataValue *dataValue);
 
-void addStepperControlNode(UA_Server *server, AccelStepperWrapper *stepper);
+UA_StatusCode 
+addStepperControlNode(UA_Server *server, AccelStepperWrapper *stepper);
 
 /* Temperature */
-UA_StatusCode
+/*UA_StatusCode
 readCurrentTemperature(UA_Server *server,
                 const UA_NodeId *sessionId, void *sessionContext,
                 const UA_NodeId *nodeId, void *nodeContext,
@@ -45,7 +46,7 @@ readCurrentTemperature(UA_Server *server,
                 UA_DataValue *dataValue);
 
 void
-addCurrentTemperatureDataSourceVariable(UA_Server *server);
+addCurrentTemperatureDataSourceVariable(UA_Server *server);*/
 
 /* Relay 0 */
 /*UA_StatusCode

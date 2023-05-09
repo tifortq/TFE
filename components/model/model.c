@@ -2,18 +2,18 @@
 #include "model.h"
 #include "DHT22.h"
 #include "driver/gpio.h"
-
+#include "accelstepper_wrapper.h"
 
 static void
 configureGPIO();
 
 /* GPIO Configuration */
-/*static void
+static void
 configureGPIO(void) {
-    gpio_set_direction(RELAY_0_GPIO, GPIO_MODE_INPUT_OUTPUT);
+    //gpio_set_direction(RELAY_0_GPIO, GPIO_MODE_INPUT_OUTPUT);
     gpio_set_direction(RELAY_1_GPIO, GPIO_MODE_INPUT_OUTPUT);
 
-}*/
+}
 int32_t nouv_position = 0;
 bool is_new_position_set = false; 
 
@@ -30,6 +30,7 @@ readStepperPosition(UA_Server *server,
                                   UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
                                   UA_DataValue *dataValue) {
     AccelStepperWrapper *stepper = (AccelStepperWrapper *)nodeContext;
+    ESP_LOGI("Step Init", "Stepper object: %p", (void *)stepper);
 
     if (stepper == NULL) {
         UA_LOG_WARNING(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "Stepper pointer is NULL");
@@ -65,14 +66,14 @@ setStepperPosition(UA_Server *server,
 
 }
 /*------------------------------*/
-void addStepperControlNode(UA_Server *server, AccelStepperWrapper *stepper) {
+UA_StatusCode addStepperControlNode(UA_Server *server, AccelStepperWrapper *stepper) {
     UA_VariableAttributes attr = UA_VariableAttributes_default;
-    attr.displayName = UA_LOCALIZEDTEXT("en-US", "Stepper Position");
+    attr.displayName = UA_LOCALIZEDTEXT("en-US", "stepmotor Position");
     attr.dataType = UA_TYPES[UA_TYPES_INT32].typeId;
     attr.accessLevel = UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE;
 
-    UA_NodeId currentNodeId = UA_NODEID_STRING(1, "Control Stepper Position");
-    UA_QualifiedName currentName = UA_QUALIFIEDNAME(1, "Control Stepper Position");
+    UA_NodeId currentNodeId = UA_NODEID_STRING(1, "stepmotor Position");
+    UA_QualifiedName currentName = UA_QUALIFIEDNAME(1, "stepmotor Position");
      UA_NodeId parentNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER);
     UA_NodeId parentReferenceNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES);
     UA_NodeId variableTypeNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE);
@@ -81,15 +82,15 @@ void addStepperControlNode(UA_Server *server, AccelStepperWrapper *stepper) {
     stepperDataSource.read = readStepperPosition;
     stepperDataSource.write = setStepperPosition;
 
-   /* UA_Server_addDataSourceVariableNode(server, currentNodeId, parentNodeId,
+   /*UA_Server_addDataSourceVariableNode(server, currentNodeId, parentNodeId,
                                         parentReferenceNodeId, currentName,
                                         variableTypeNodeId, attr,
                                         stepperDataSource, NULL, NULL);*/
-    UA_StatusCode retval = UA_Server_addDataSourceVariableNode(server, currentNodeId,
-                                                        UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
-                                                        UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
-                                                        UA_QUALIFIEDNAME(1, "Control Stepper Position"),
-                                                        UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE),attr, stepperDataSource, (void *)stepper, NULL);
+    //UA_StatusCode retval = UA_Server_addDataSourceVariableNode                                    
+    return UA_Server_addDataSourceVariableNode(server, currentNodeId,
+                                                        parentNodeId,
+                                        parentReferenceNodeId, currentName,
+                                        variableTypeNodeId,attr, stepperDataSource, (void *)stepper, NULL);
                                                         //(void *)stepper
     }                                                    /*-----*/
 // /* LED Method */
