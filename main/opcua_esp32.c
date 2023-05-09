@@ -24,8 +24,8 @@ AccelStepperWrapper *stepper = NULL;
 void step_init(void){
     
     stepper = accelstepper_create(1, STEP_PIN, DIR_PIN);
-    accelstepper_set_max_speed(stepper, 1000); // Vitesse maximale en pas par seconde
-    accelstepper_set_acceleration(stepper, 400);
+    accelstepper_set_max_speed(stepper, 2000); // Vitesse maximale en pas par seconde
+    accelstepper_set_acceleration(stepper, 600);
     ESP_LOGI("Step Init", "Stepper object: %p", (void *)stepper);
 }
 SemaphoreHandle_t accelStepperMutex;
@@ -36,35 +36,35 @@ SemaphoreHandle_t get_accel_stepper_mutex() {
 extern int32_t nouv_position;
 extern bool is_new_position_set;
 /*-------*/ 
-/*void stepper_task(void *arg)
+void stepper_task(void *arg)
 {
     // Initialisez la bibliothèque AccelStepper
-     AccelStepperWrapper* stepper = accelstepper_create(1, STEP_PIN, DIR_PIN);
+    AccelStepperWrapper *stepper = accelstepper_create(1, STEP_PIN, DIR_PIN);
 
     // Configurez la vitesse et l'accélération du moteur
     accelstepper_set_max_speed(stepper, 1000); // Vitesse maximale en pas par seconde
     accelstepper_set_acceleration(stepper, 400); // Accélération en pas par seconde au carré
 
     // Définissez la position cible en pas
-    long target_position = 800;
-
+    long target_position = 1000;
 
     while (1) {
         // Vérifiez si le moteur a atteint sa position cible
-        accelstepper_move_to(stepper, accelstepper_current_position(stepper) + target_position);
+        if (accelstepper_distance_to_go(stepper) == 0) {
             // Inversez la direction en changeant la position cible
-            while (accelstepper_distance_to_go(stepper) != 0) {
-            accelstepper_run(stepper);
-            vTaskDelay(pdMS_TO_TICKS(10));
+            target_position = -target_position;
+            accelstepper_move_to(stepper, accelstepper_current_position(stepper) + target_position);
         }
-
-        target_position = -target_position; // Inversez la direction
+        // Déplacez le moteur vers la position cible
+        accelstepper_run_to_new_position(stepper, accelstepper_current_position(stepper) + target_position);
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
-
 
     // Libérez les ressources allouées au stepper (ne sera jamais appelé dans cet exemple)
     accelstepper_destroy(stepper);
-}*/
+}
+
+
 static UA_StatusCode
 UA_ServerConfig_setUriName(UA_ServerConfig *uaServerConfig, const char *uri, const char *name)
 {
@@ -95,7 +95,7 @@ UA_ServerConfig_setUriName(UA_ServerConfig *uaServerConfig, const char *uri, con
 static void opcua_task(void *arg)
 {
     // BufferSize's got to be decreased due to latest refactorings in open62541 v1.2rc.
-    step_init();
+    //step_init();
     UA_Int32 sendBufferSize = 16384;
     UA_Int32 recvBufferSize = 16384;
 
@@ -147,10 +147,10 @@ static void opcua_task(void *arg)
     //addRelay0ControlNode(server);
     addRelay1ControlNode(server);
     
-    UA_StatusCode result = addStepperControlNode(server,stepper);
+   /* UA_StatusCode result = addStepperControlNode(server,stepper);
 if(result != UA_STATUSCODE_GOOD) {
     ESP_LOGE(TAG, "Erreur lors de l'ajout du nœud moteur pas à pas : 0x%08x", result);
-}
+}*/
 
 
     ESP_LOGI(TAG, "Heap Left : %d", xPortGetFreeHeapSize());
@@ -264,5 +264,5 @@ void app_main(void)
         ESP_ERROR_CHECK(nvs_flash_init());
     }
     connection_scan();
-    //xTaskCreatePinnedToCore(stepper_task, "stepper_task", 2048, (void *)stepper, 5, NULL, 0);
+    xTaskCreatePinnedToCore(stepper_task, "stepper_task", 2048, (void *)stepper, 5, NULL, 0);
 }
