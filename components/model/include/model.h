@@ -8,8 +8,9 @@
 // #define RELAY_2_GPIO 26
 // #define RELAY_3_GPIO 27
 extern int32_t nouv_position;
-extern bool is_new_position_set;
+
 void updateTargetPosition(int32_t new_position);
+
 // /* Led Method */
 // UA_StatusCode
 // ledProcessCallBack(UA_Server *server,
@@ -34,36 +35,24 @@ readStepperPosition(UA_Server *server,
                     UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
                     UA_DataValue *dataValue);
 
-UA_StatusCode 
+void 
 addStepperControlNode(UA_Server *server, AccelStepperWrapper *stepper);
 
-/* Temperature */
-/*UA_StatusCode
-readCurrentTemperature(UA_Server *server,
-                const UA_NodeId *sessionId, void *sessionContext,
-                const UA_NodeId *nodeId, void *nodeContext,
-                UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
-                UA_DataValue *dataValue);
-
-void
-addCurrentTemperatureDataSourceVariable(UA_Server *server);*/
-
-/* Relay 0 */
-/*UA_StatusCode
-readRelay0State(UA_Server *server,
-                const UA_NodeId *sessionId, void *sessionContext,
-                const UA_NodeId *nodeId, void *nodeContext,
-                UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
-                UA_DataValue *dataValue);
+/*---------*/
+UA_StatusCode
+setStepperSpeed(UA_Server *server,
+                   const UA_NodeId *sessionId, void *sessionContext,
+                   const UA_NodeId *nodeId, void *nodeContext,
+                   const UA_NumericRange *range, const UA_DataValue *data);
+UA_StatusCode
+readStepperSpeed(UA_Server *server,
+                    const UA_NodeId *sessionId, void *sessionContext,
+                    const UA_NodeId *nodeId, void *nodeContext,
+                    UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
+                    UA_DataValue *dataValue);
 
 UA_StatusCode
-setRelay0State(UA_Server *server,
-                  const UA_NodeId *sessionId, void *sessionContext,
-                  const UA_NodeId *nodeId, void *nodeContext,
-                 const UA_NumericRange *range, const UA_DataValue *data);
-
-void
-addRelay0ControlNode(UA_Server *server);*/
+addStepperSpeedControlNode(UA_Server *server, AccelStepperWrapper *stepper);
 
 /* Relay 1 */
 UA_StatusCode
