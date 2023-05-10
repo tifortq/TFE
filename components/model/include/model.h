@@ -53,7 +53,22 @@ readStepperSpeed(UA_Server *server,
 
 UA_StatusCode
 addStepperSpeedControlNode(UA_Server *server, AccelStepperWrapper *stepper);
+/*------------------*/
 
+UA_StatusCode
+setStepperACC(UA_Server *server,
+                   const UA_NodeId *sessionId, void *sessionContext,
+                   const UA_NodeId *nodeId, void *nodeContext,
+                   const UA_NumericRange *range, const UA_DataValue *data);
+UA_StatusCode
+readStepperACC(UA_Server *server,
+                    const UA_NodeId *sessionId, void *sessionContext,
+                    const UA_NodeId *nodeId, void *nodeContext,
+                    UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
+                    UA_DataValue *dataValue);
+
+void
+addStepperAccControlNode(UA_Server *server, AccelStepperWrapper *stepper);
 /* Relay 1 */
 UA_StatusCode
 readRelay1State(UA_Server *server,

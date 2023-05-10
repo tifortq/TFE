@@ -42,16 +42,14 @@ void stepper_task(void *arg)
 
 
     while (1) {
-        // Vérifiez si le moteur a atteint sa position cible
-        /*if (accelstepper_distance_to_go(stepper) == 0) {
-            // Inversez la direction en changeant la position cible
-            
-            accelstepper_move_to(stepper, accelstepper_current_position(stepper) + nouv_position);
-        }*/
-        // Déplacez le moteur vers la position cible
+    if (accelstepper_distance_to_go(stepper) == 0) {
+        // Inversez la direction en changeant la position cible
         accelstepper_run_to_new_position(stepper, nouv_position);
-        vTaskDelay(pdMS_TO_TICKS(10));
     }
+    // Déplacez le moteur vers la position cible
+    //accelstepper_run_to_new_position(stepper, nouv_position);
+    vTaskDelay(pdMS_TO_TICKS(10));
+}
 
     // Libérez les ressources allouées au stepper (ne sera jamais appelé dans cet exemple)
     accelstepper_destroy(stepper);
@@ -140,6 +138,7 @@ static void opcua_task(void *arg)
     //addRelay0ControlNode(server);
     addRelay1ControlNode(server);
     addStepperControlNode(server,stepper);
+    addStepperAccControlNode(server,stepper);
     //addStepperSpeedControlNode(server,stepper);
     UA_StatusCode result = addStepperSpeedControlNode(server,stepper);
 if(result != UA_STATUSCODE_GOOD) {

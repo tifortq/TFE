@@ -148,6 +148,56 @@ UA_StatusCode addStepperSpeedControlNode(UA_Server *server, AccelStepperWrapper 
     }                                                   
 /*-------------*/
 
+UA_StatusCode 
+readStepperACC(UA_Server *server,
+                                  const UA_NodeId *sessionId, void *sessionContext,
+                                  const UA_NodeId *nodeId, void *nodeContext,
+                                  UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
+                                  UA_DataValue *dataValue) {
+    AccelStepperWrapper *stepper = (AccelStepperWrapper *)nodeContext;
+    UA_Float acc = 0.0; // ou une autre valeur par défaut
+    UA_Variant_setScalarCopy(&dataValue->value, &acc, &UA_TYPES[UA_TYPES_FLOAT]);
+    dataValue->hasValue = true;
+    return UA_STATUSCODE_GOOD;
+
+}
+UA_StatusCode 
+setStepperACC(UA_Server *server,
+                               const UA_NodeId *sessionId, void *sessionContext,
+                               const UA_NodeId *nodeId, void *nodeContext,
+                               const UA_NumericRange *range, const UA_DataValue *data) {
+    AccelStepperWrapper *stepper = (AccelStepperWrapper *)nodeContext;
+    UA_Float new_acc = *(UA_Float *)data->value.data;
+    accelstepper_set_acceleration(stepper, new_acc);
+    ESP_LOGI("Step Init", "ACC: %f", new_acc);
+    return UA_STATUSCODE_GOOD;
+}
+void addStepperAccControlNode(UA_Server *server, AccelStepperWrapper *stepper) {
+    UA_VariableAttributes attr = UA_VariableAttributes_default;
+    attr.displayName = UA_LOCALIZEDTEXT("en-US", "stepmotor Acc");
+    attr.dataType = UA_TYPES[UA_TYPES_FLOAT].typeId;
+    attr.accessLevel = UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE;
+
+    UA_NodeId currentNodeId = UA_NODEID_STRING(1, "stepmotor Acc");
+    UA_QualifiedName currentName = UA_QUALIFIEDNAME(1, "stepmotor Acc");
+     UA_NodeId parentNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER);
+    UA_NodeId parentReferenceNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES);
+    UA_NodeId variableTypeNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE);
+
+    UA_DataSource ACCDataSource;
+    ACCDataSource.read = readStepperACC;
+    ACCDataSource.write = setStepperACC;
+
+                                   
+    UA_Server_addDataSourceVariableNode(server, currentNodeId,
+                                                        parentNodeId,
+                                        parentReferenceNodeId, currentName,
+                                        variableTypeNodeId,attr, ACCDataSource, (void *)stepper, NULL);
+     
+                                                        
+    }
+    /*---------------------------------*/
+
 UA_StatusCode
 readCurrentTemperature(UA_Server *server,
                 const UA_NodeId *sessionId, void *sessionContext,
