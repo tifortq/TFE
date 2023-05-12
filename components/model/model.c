@@ -15,12 +15,21 @@ configureGPIO(void) {
 
 }
 int32_t nouv_position = 0;
-
-
+int32_t position=0;
+UA_Float new_acc = 0.0;
+UA_Float new_speed = 0.0;
+bool is_moving = false;
 
 void updateTargetPosition(int32_t new_position) {
     nouv_position = new_position;
     
+}
+void FlagTrueMouvement(void) {
+    is_moving = true;
+    
+}
+void FlagFalseMouvement(void) {
+    is_moving = false;  
 }
 
 /*------*/
@@ -37,10 +46,14 @@ readStepperPosition(UA_Server *server,
         UA_LOG_WARNING(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "Stepper pointer is NULL");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
-
-    int32_t position = accelstepper_current_position(stepper);
+   /* if (is_moving == true){
+     position = accelstepper_current_position(stepper);}
+    else if (is_moving == false){
+    position = 0;
+    }*/
+    position = accelstepper_current_position(stepper);
     UA_Variant_setScalarCopy(&dataValue->value, &position, &UA_TYPES[UA_TYPES_INT32]);
-    dataValue->hasValue = true;
+    dataValue->hasValue = true; 
     return UA_STATUSCODE_GOOD;
 } 
 
@@ -105,8 +118,8 @@ readStepperSpeed(UA_Server *server,
                                   UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
                                   UA_DataValue *dataValue) {
     AccelStepperWrapper *stepper = (AccelStepperWrapper *)nodeContext;
-    UA_Float speed = 0.0; // ou une autre valeur par défaut
-    UA_Variant_setScalarCopy(&dataValue->value, &speed, &UA_TYPES[UA_TYPES_FLOAT]);
+     // ou une autre valeur par défaut
+    UA_Variant_setScalarCopy(&dataValue->value, &new_speed, &UA_TYPES[UA_TYPES_FLOAT]);
     dataValue->hasValue = true;
     return UA_STATUSCODE_GOOD;
 
@@ -117,7 +130,7 @@ setStepperSpeed(UA_Server *server,
                                const UA_NodeId *nodeId, void *nodeContext,
                                const UA_NumericRange *range, const UA_DataValue *data) {
     AccelStepperWrapper *stepper = (AccelStepperWrapper *)nodeContext;
-    UA_Float new_speed = *(UA_Float *)data->value.data;
+    new_speed = *(UA_Float *)data->value.data;
     accelstepper_set_max_speed(stepper, new_speed);
     ESP_LOGI("Step Init", "VITESSE: %f", new_speed);
     return UA_STATUSCODE_GOOD;
@@ -155,8 +168,8 @@ readStepperACC(UA_Server *server,
                                   UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
                                   UA_DataValue *dataValue) {
     AccelStepperWrapper *stepper = (AccelStepperWrapper *)nodeContext;
-    UA_Float acc = 0.0; // ou une autre valeur par défaut
-    UA_Variant_setScalarCopy(&dataValue->value, &acc, &UA_TYPES[UA_TYPES_FLOAT]);
+    // ou une autre valeur par défaut
+    UA_Variant_setScalarCopy(&dataValue->value, &new_acc, &UA_TYPES[UA_TYPES_FLOAT]);
     dataValue->hasValue = true;
     return UA_STATUSCODE_GOOD;
 
@@ -167,7 +180,7 @@ setStepperACC(UA_Server *server,
                                const UA_NodeId *nodeId, void *nodeContext,
                                const UA_NumericRange *range, const UA_DataValue *data) {
     AccelStepperWrapper *stepper = (AccelStepperWrapper *)nodeContext;
-    UA_Float new_acc = *(UA_Float *)data->value.data;
+    new_acc = *(UA_Float *)data->value.data;
     accelstepper_set_acceleration(stepper, new_acc);
     ESP_LOGI("Step Init", "ACC: %f", new_acc);
     return UA_STATUSCODE_GOOD;

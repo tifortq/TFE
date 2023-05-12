@@ -8,9 +8,10 @@
 // #define RELAY_2_GPIO 26
 // #define RELAY_3_GPIO 27
 extern int32_t nouv_position;
-
+extern bool is_moving;
 void updateTargetPosition(int32_t new_position);
-
+void FlagTrueMouvement(void);
+void FlagFalseMouvement(void);
 // /* Led Method */
 // UA_StatusCode
 // ledProcessCallBack(UA_Server *server,

@@ -21,6 +21,9 @@ static time_t now = 0;
 AccelStepperWrapper *stepper = NULL;
 #define STEP_PIN 33
 #define DIR_PIN  4
+extern bool is_moving;
+void FlagTrueMouvement(void);
+void FlagFalseMouvement(void);
 void step_init(void){
     
     stepper = accelstepper_create(1, STEP_PIN, DIR_PIN);
@@ -35,7 +38,7 @@ SemaphoreHandle_t get_accel_stepper_mutex() {
 }
 extern int32_t nouv_position;
 
-
+int32_t last_position = 0;
 /*-------*/ 
 void stepper_task(void *arg)
 {
@@ -54,6 +57,7 @@ void stepper_task(void *arg)
     // Libérez les ressources allouées au stepper (ne sera jamais appelé dans cet exemple)
     accelstepper_destroy(stepper);
 }
+
 
 
 static UA_StatusCode
