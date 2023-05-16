@@ -17,10 +17,16 @@ static UA_Boolean isServerCreated = false;
 RTC_DATA_ATTR static int boot_count = 0;
 static struct tm timeinfo;
 static time_t now = 0;
+/*----Interruption----*/
+TaskHandle_t INTERRUPTION = NULL;
+#define INT_PIN 15
+extern volatile bool motor_stop;
+int stop_flag = 0;
 /*-----*/
 AccelStepperWrapper *stepper = NULL;
 #define STEP_PIN 33
 #define DIR_PIN  4
+
 extern bool is_moving;
 void FlagTrueMouvement(void);
 void FlagFalseMouvement(void);
@@ -39,7 +45,23 @@ SemaphoreHandle_t get_accel_stepper_mutex() {
 extern int32_t nouv_position;
 
 int32_t last_position = 0;
-/*-------*/ 
+/*---------TACHE INTERRUPTION----------*/
+void IRAM_ATTR interruptask(void* arg)
+{
+        //gpio_intr_disable(INT_PIN);
+        
+        motor_stop = true;
+        
+        //gpio_intr_enable(INT_PIN);
+
+    
+}/*-----------*/
+
+
+
+/*-----------------------------*/
+
+/*----FIN DE TACHE INTERRUPTION-------*/ 
 void stepper_task(void *arg)
 {
 
@@ -57,7 +79,40 @@ void stepper_task(void *arg)
     // Libérez les ressources allouées au stepper (ne sera jamais appelé dans cet exemple)
     accelstepper_destroy(stepper);
 }
+/*----TACHE DEPLACEMENT MOTEUR AVEC RUN----*/
+void stepper_task_run(void *arg)
+{
+    while (1) {
 
+       // stop_motor = stop_flag;
+        //stop_flag = gpio_get_level(INT_PIN);
+        //if (stop_motor != stop_flag && stop_flag == 0) {
+            if (motor_stop){
+
+            //vTaskDelay(pdMS_TO_TICKS(10));
+            // Arrêter le moteur ici
+            ESP_LOGI("Step Init", "Stepper object: %p", (void *)stepper);
+            accelstepper_stop(stepper);
+            accelstepper_runToPosition(stepper);
+            accelstepper_move_to(stepper,0);
+            motor_stop = false;
+             // Réinitialiser l'indicateur d'arrêt
+        }
+        else {
+            if (accelstepper_distance_to_go(stepper) != 0) {
+                accelstepper_run(stepper);
+            }
+        }
+          // Récupère la position cible depuis le noeud OPC UA
+        //esp_task_wdt_reset();
+        vTaskDelay(pdMS_TO_TICKS(8));       
+        
+    }
+
+    // Libérez les ressources allouées au stepper (ne sera jamais appelé dans cet exemple)
+    accelstepper_destroy(stepper);
+}
+/*--------------------*/
 
 
 static UA_StatusCode
@@ -143,11 +198,11 @@ static void opcua_task(void *arg)
     addRelay1ControlNode(server);
     addStepperControlNode(server,stepper);
     addStepperAccControlNode(server,stepper);
-    //addStepperSpeedControlNode(server,stepper);
-    UA_StatusCode result = addStepperSpeedControlNode(server,stepper);
-if(result != UA_STATUSCODE_GOOD) {
+    addStepperMaxSpeedControlNode(server,stepper);
+    UA_StatusCode result = addCurrentSpeed(server, stepper);
+    if(result != UA_STATUSCODE_GOOD) {
     ESP_LOGE(TAG, "Erreur lors de l'ajout du nœud moteur pas à pas : 0x%08x", result);
-}
+    }
    /*UA_StatusCode result = addStepperControlNode(server,stepper);
 if(result != UA_STATUSCODE_GOOD) {
     ESP_LOGE(TAG, "Erreur lors de l'ajout du nœud moteur pas à pas : 0x%08x", result);
@@ -247,6 +302,17 @@ static void connection_scan(void)
 
 void app_main(void)
 {
+    /*----------------------------*/
+    
+   
+ // Initialisation du service ISR
+    esp_rom_gpio_pad_select_gpio(INT_PIN);
+    gpio_set_direction(INT_PIN, GPIO_MODE_INPUT);
+    gpio_pulldown_en(INT_PIN);
+    gpio_pullup_dis(INT_PIN);
+    gpio_set_intr_type(INT_PIN, GPIO_INTR_POSEDGE);
+ 
+  /*-------------------------------------------------*/
     accelStepperMutex = xSemaphoreCreateMutex();
     
     ++boot_count;
@@ -265,5 +331,10 @@ void app_main(void)
         ESP_ERROR_CHECK(nvs_flash_init());
     }
     connection_scan();
-    xTaskCreatePinnedToCore(stepper_task, "stepper_task", 2048, (void *)stepper, 5, NULL, 0);
+    //xTaskCreatePinnedToCore(stepper_task, "stepper_task", 2048, (void *)stepper, 10, &INTERRUPTION, 0);
+    /*------------------------------*/
+    xTaskCreatePinnedToCore(stepper_task_run, "stepper_task_run", 2048, (void *)stepper, 9, &INTERRUPTION, 0);
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(INT_PIN, interruptask, (void *)INT_PIN);
+    /*------------------------------*/
 }

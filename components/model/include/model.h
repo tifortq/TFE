@@ -9,6 +9,7 @@
 // #define RELAY_3_GPIO 27
 extern int32_t nouv_position;
 extern bool is_moving;
+extern volatile bool motor_stop;
 void updateTargetPosition(int32_t new_position);
 void FlagTrueMouvement(void);
 void FlagFalseMouvement(void);
@@ -41,19 +42,19 @@ addStepperControlNode(UA_Server *server, AccelStepperWrapper *stepper);
 
 /*---------*/
 UA_StatusCode
-setStepperSpeed(UA_Server *server,
+setStepperMaxSpeed(UA_Server *server,
                    const UA_NodeId *sessionId, void *sessionContext,
                    const UA_NodeId *nodeId, void *nodeContext,
                    const UA_NumericRange *range, const UA_DataValue *data);
 UA_StatusCode
-readStepperSpeed(UA_Server *server,
+readStepperMaxSpeed(UA_Server *server,
                     const UA_NodeId *sessionId, void *sessionContext,
                     const UA_NodeId *nodeId, void *nodeContext,
                     UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
                     UA_DataValue *dataValue);
 
-UA_StatusCode
-addStepperSpeedControlNode(UA_Server *server, AccelStepperWrapper *stepper);
+void
+addStepperMaxSpeedControlNode(UA_Server *server, AccelStepperWrapper *stepper);
 /*------------------*/
 
 UA_StatusCode
@@ -70,6 +71,16 @@ readStepperACC(UA_Server *server,
 
 void
 addStepperAccControlNode(UA_Server *server, AccelStepperWrapper *stepper);
+/*------------------------------*/
+UA_StatusCode
+readCurrentSpeed(UA_Server *server,
+                    const UA_NodeId *sessionId, void *sessionContext,
+                    const UA_NodeId *nodeId, void *nodeContext,
+                    UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
+                    UA_DataValue *dataValue);
+
+UA_StatusCode addCurrentSpeed(UA_Server *server, AccelStepperWrapper *stepper);
+
 /* Relay 1 */
 UA_StatusCode
 readRelay1State(UA_Server *server,

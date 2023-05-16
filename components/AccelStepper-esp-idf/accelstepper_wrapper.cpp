@@ -54,6 +54,14 @@ void accelstepper_run_to_new_position(AccelStepperWrapper stepper, int32_t posit
         static_cast<AccelStepper*>(stepper)->runToNewPosition(position);
     }
 }
+/*--------------*/
+void    accelstepper_runToPosition(AccelStepperWrapper stepper){
+static_cast<AccelStepper*>(stepper)->runToPosition();
+}
+/*------------------------------*/
+void accelstepper_stop(AccelStepperWrapper stepper) {
+    static_cast<AccelStepper*>(stepper)->stop();
+}
 /*
 long accelstepper_current_position(AccelStepperWrapper stepper) {
     return ((AccelStepper *)stepper)->currentPosition();

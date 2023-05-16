@@ -12,6 +12,7 @@
 #include "nvs_flash.h"
 #include "lwip/ip_addr.h"
 #include "sdkconfig.h"
+#include "driver/gpio.h"
 
 #include "ethernet_connect.h"
 #include "open62541.h"

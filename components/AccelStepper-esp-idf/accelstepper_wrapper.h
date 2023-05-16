@@ -18,7 +18,10 @@ void accelstepper_set_acceleration(AccelStepperWrapper stepper, float accelerati
 long accelstepper_distance_to_go(AccelStepperWrapper stepper);
 void accelstepper_run(AccelStepperWrapper stepper);
 void accelstepper_run_to_new_position(AccelStepperWrapper stepper, int32_t position);
-
+void accelstepper_runToPosition(AccelStepperWrapper stepper);
+/*-----------*/
+void accelstepper_stop(AccelStepperWrapper stepper);
+/*------------*/
 int32_t accelstepper_current_position(AccelStepperWrapper stepper);
 
 float accelstepper_max_speed(AccelStepperWrapper stepper);
