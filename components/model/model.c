@@ -4,33 +4,21 @@
 #include "driver/gpio.h"
 #include "accelstepper_wrapper.h"
 
-static void
-configureGPIO();
 
-/* GPIO Configuration */
-static void
-configureGPIO(void) {
-    //gpio_set_direction(RELAY_0_GPIO, GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction(RELAY_1_GPIO, GPIO_MODE_INPUT_OUTPUT);
 
-}
+
+
+
 int32_t nouv_position = 0;
 int32_t position=0;
 int32_t vit_position =0;
 UA_Float new_acc = 0.0;
 UA_Float new_speed = 0.0;
-bool is_moving = false;
+volatile bool motor_stop_RAZ = false;
 volatile bool motor_stop = false;
 void updateTargetPosition(int32_t new_position) {
     nouv_position = new_position;
     
-}
-void FlagTrueMouvement(void) {
-    is_moving = true;
-    
-}
-void FlagFalseMouvement(void) {
-    is_moving = false;  
 }
 
 /*------*/
@@ -251,45 +239,10 @@ addCurrentSpeed(UA_Server *server, AccelStepperWrapper *stepper) {
                                         variableTypeNodeId,attr, SpeedActDataSource, (void *)stepper, NULL);
 }
 /*-----------------------------------------------*/
+/*NOEUD ARRET*/ 
 
 UA_StatusCode
-readCurrentTemperature(UA_Server *server,
-                const UA_NodeId *sessionId, void *sessionContext,
-                const UA_NodeId *nodeId, void *nodeContext,
-                UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
-                UA_DataValue *dataValue) {
-    UA_Float temperature = 2;
-    UA_Variant_setScalarCopy(&dataValue->value, &temperature,
-                             &UA_TYPES[UA_TYPES_FLOAT]);
-    dataValue->hasValue = true;
-    return UA_STATUSCODE_GOOD;
-}
-
-
-void
-addCurrentTemperatureDataSourceVariable(UA_Server *server) {
-    UA_VariableAttributes attr = UA_VariableAttributes_default;
-    attr.displayName = UA_LOCALIZEDTEXT("en-US", "Temperature");
-    attr.dataType = UA_TYPES[UA_TYPES_INT32].typeId;
-    attr.accessLevel = UA_ACCESSLEVELMASK_READ;
-
-    UA_NodeId currentNodeId = UA_NODEID_STRING(1, "temperature");
-    UA_QualifiedName currentName = UA_QUALIFIEDNAME(1, "Ambient Temperature");
-    UA_NodeId parentNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER);
-    UA_NodeId parentReferenceNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES);
-    UA_NodeId variableTypeNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE);
-
-    UA_DataSource timeDataSource;
-    timeDataSource.read = readCurrentTemperature;
-    UA_Server_addDataSourceVariableNode(server, currentNodeId, parentNodeId,
-                                        parentReferenceNodeId, currentName,
-                                        variableTypeNodeId, attr,
-                                        timeDataSource, NULL, NULL);
-}
-
-
-UA_StatusCode
-readRelay1State(UA_Server *server,
+readSTOPState(UA_Server *server,
                 const UA_NodeId *sessionId, void *sessionContext,
                 const UA_NodeId *nodeId, void *nodeContext,
                 UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
@@ -302,7 +255,7 @@ readRelay1State(UA_Server *server,
 }
 
 UA_StatusCode
-setRelay1State(UA_Server *server,
+setSTOP(UA_Server *server,
                   const UA_NodeId *sessionId, void *sessionContext,
                   const UA_NodeId *nodeId, void *nodeContext,
                  const UA_NumericRange *range, const UA_DataValue *data) {
@@ -314,7 +267,7 @@ setRelay1State(UA_Server *server,
 }
 
 void
-addRelay1ControlNode(UA_Server *server) {
+addSTOPControlNode(UA_Server *server) {
     UA_VariableAttributes attr = UA_VariableAttributes_default;
     attr.displayName = UA_LOCALIZEDTEXT("en-US", "STOP");
     attr.dataType = UA_TYPES[UA_TYPES_BOOLEAN].typeId;
@@ -326,11 +279,58 @@ addRelay1ControlNode(UA_Server *server) {
     UA_NodeId parentReferenceNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES);
     UA_NodeId variableTypeNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE);
 
-    UA_DataSource relay1;
-    relay1.read = readRelay1State;
-    relay1.write = setRelay1State;
+    UA_DataSource STOP;
+    STOP.read = readSTOPState;
+    STOP.write = setSTOP;
     UA_Server_addDataSourceVariableNode(server, currentNodeId, parentNodeId,
                                         parentReferenceNodeId, currentName,
                                         variableTypeNodeId, attr,
-                                        relay1, NULL, NULL);
+                                        STOP, NULL, NULL);
+}
+/*NOEUD ARRET ET REMISE POSITION INITIALE */
+UA_StatusCode
+readRAZState(UA_Server *server,
+                const UA_NodeId *sessionId, void *sessionContext,
+                const UA_NodeId *nodeId, void *nodeContext,
+                UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
+                UA_DataValue *dataValue) {
+    
+    UA_Variant_setScalarCopy(&dataValue->value, &motor_stop_RAZ,
+                             &UA_TYPES[UA_TYPES_BOOLEAN]);
+    dataValue->hasValue = true;
+    return UA_STATUSCODE_GOOD;
+}
+
+UA_StatusCode
+setRAZState(UA_Server *server,
+                  const UA_NodeId *sessionId, void *sessionContext,
+                  const UA_NodeId *nodeId, void *nodeContext,
+                 const UA_NumericRange *range, const UA_DataValue *data) {
+    motor_stop_RAZ = *(UA_Boolean *)data->value.data;
+    
+    
+    //UA_StatusCode status = relay1_state_after_write == level ? UA_STATUSCODE_GOOD : UA_STATUSCODE_BADINTERNALERROR;
+    return UA_STATUSCODE_GOOD;
+}
+
+void
+addRAZControlNode(UA_Server *server) {
+    UA_VariableAttributes attr = UA_VariableAttributes_default;
+    attr.displayName = UA_LOCALIZEDTEXT("en-US", "STOP_RAZ");
+    attr.dataType = UA_TYPES[UA_TYPES_BOOLEAN].typeId;
+    attr.accessLevel = UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE;
+
+    UA_NodeId currentNodeId = UA_NODEID_STRING(1, "STOP_RAZ");
+    UA_QualifiedName currentName = UA_QUALIFIEDNAME(1, "STOP_RAZ");
+    UA_NodeId parentNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER);
+    UA_NodeId parentReferenceNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES);
+    UA_NodeId variableTypeNodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE);
+
+    UA_DataSource RAZ;
+    RAZ.read = readRAZState;
+    RAZ.write = setRAZState;
+    UA_Server_addDataSourceVariableNode(server, currentNodeId, parentNodeId,
+                                        parentReferenceNodeId, currentName,
+                                        variableTypeNodeId, attr,
+                                        RAZ, NULL, NULL);
 }

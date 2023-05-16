@@ -21,15 +21,15 @@ static time_t now = 0;
 TaskHandle_t INTERRUPTION = NULL;
 #define INT_PIN 15
 extern volatile bool motor_stop;
+extern volatile bool motor_stop_RAZ;
 int stop_flag = 0;
 /*-----*/
 AccelStepperWrapper *stepper = NULL;
 #define STEP_PIN 33
 #define DIR_PIN  4
 
-extern bool is_moving;
-void FlagTrueMouvement(void);
-void FlagFalseMouvement(void);
+
+
 void step_init(void){
     
     stepper = accelstepper_create(1, STEP_PIN, DIR_PIN);
@@ -55,11 +55,8 @@ void IRAM_ATTR interruptask(void* arg)
         //gpio_intr_enable(INT_PIN);
 
     
-}/*-----------*/
+}
 
-
-
-/*-----------------------------*/
 
 /*----FIN DE TACHE INTERRUPTION-------*/ 
 void stepper_task(void *arg)
@@ -84,27 +81,32 @@ void stepper_task_run(void *arg)
 {
     while (1) {
 
-       // stop_motor = stop_flag;
-        //stop_flag = gpio_get_level(INT_PIN);
-        //if (stop_motor != stop_flag && stop_flag == 0) {
-            if (motor_stop){
 
-            //vTaskDelay(pdMS_TO_TICKS(10));
+        if (motor_stop){
+
+            
             // Arrêter le moteur ici
             ESP_LOGI("Step Init", "Stepper object: %p", (void *)stepper);
             accelstepper_stop(stepper);
             accelstepper_runToPosition(stepper);
-            accelstepper_move_to(stepper,0);
+            //accelstepper_move_to(stepper,0);
             motor_stop = false;
-             // Réinitialiser l'indicateur d'arrêt
+             
         }
-        else {
-            if (accelstepper_distance_to_go(stepper) != 0) {
-                accelstepper_run(stepper);
+        else if(motor_stop_RAZ){
+            accelstepper_stop(stepper);
+            accelstepper_runToPosition(stepper);
+            accelstepper_move_to(stepper,0);
+            motor_stop_RAZ = false;
+        
+        }
+            else {
+                if (accelstepper_distance_to_go(stepper) != 0) {
+                    accelstepper_run(stepper);
+                }
             }
-        }
-          // Récupère la position cible depuis le noeud OPC UA
-        //esp_task_wdt_reset();
+          
+        
         vTaskDelay(pdMS_TO_TICKS(8));       
         
     }
@@ -195,7 +197,8 @@ static void opcua_task(void *arg)
     
     //addCurrentTemperatureDataSourceVariable(server);
     //addRelay0ControlNode(server);
-    addRelay1ControlNode(server);
+    addSTOPControlNode(server);
+    addRAZControlNode(server);
     addStepperControlNode(server,stepper);
     addStepperAccControlNode(server,stepper);
     addStepperMaxSpeedControlNode(server,stepper);
@@ -203,10 +206,7 @@ static void opcua_task(void *arg)
     if(result != UA_STATUSCODE_GOOD) {
     ESP_LOGE(TAG, "Erreur lors de l'ajout du nœud moteur pas à pas : 0x%08x", result);
     }
-   /*UA_StatusCode result = addStepperControlNode(server,stepper);
-if(result != UA_STATUSCODE_GOOD) {
-    ESP_LOGE(TAG, "Erreur lors de l'ajout du nœud moteur pas à pas : 0x%08x", result);
-}*/
+
 
 
     ESP_LOGI(TAG, "Heap Left : %d", xPortGetFreeHeapSize());
