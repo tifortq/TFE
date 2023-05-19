@@ -19,10 +19,11 @@ static struct tm timeinfo;
 static time_t now = 0;
 /*----Interruption----*/
 TaskHandle_t INTERRUPTION = NULL;
-#define INT_PIN 15
+#define INT_PIN 12
 extern volatile bool motor_stop;
 extern volatile bool motor_stop_RAZ;
 int stop_flag = 0;
+volatile uint32_t last_interrupt_time = 0;
 /*-----*/
 AccelStepperWrapper *stepper = NULL;
 #define STEP_PIN 33
@@ -37,7 +38,8 @@ void step_init(void){
     accelstepper_set_acceleration(stepper, 400);
     ESP_LOGI("Step Init", "Stepper object: %p", (void *)stepper);
 }
-SemaphoreHandle_t accelStepperMutex;
+SemaphoreHandle_t accelStepperMutex;// semaphore pour le wrapper
+
 
 SemaphoreHandle_t get_accel_stepper_mutex() {
     return accelStepperMutex;
@@ -46,36 +48,24 @@ extern int32_t nouv_position;
 
 int32_t last_position = 0;
 /*---------TACHE INTERRUPTION----------*/
-void IRAM_ATTR interruptask(void* arg)
+static void IRAM_ATTR interruptask(void* arg)
 {
+        uint32_t current_time = xTaskGetTickCountFromISR();
+        uint32_t elapsed_time = current_time - last_interrupt_time;
         //gpio_intr_disable(INT_PIN);
-        
+        //vTaskSuspend(INTERRUPTION);
+        //ESP_LOGI("Step Init", "Stepper object: %p", (void *)stepper);
+        if ((current_time - last_interrupt_time) >=  pdMS_TO_TICKS(1000) && gpio_get_level(INT_PIN) == 1) {
         motor_stop = true;
+        //vTaskResume(INTERRUPTION);
+        last_interrupt_time = current_time;
+        }
         
-        //gpio_intr_enable(INT_PIN);
 
     
 }
 
-
 /*----FIN DE TACHE INTERRUPTION-------*/ 
-void stepper_task(void *arg)
-{
-
-
-    while (1) {
-    if (accelstepper_distance_to_go(stepper) == 0) {
-        // Inversez la direction en changeant la position cible
-        accelstepper_run_to_new_position(stepper, nouv_position);
-    }
-    // Déplacez le moteur vers la position cible
-    //accelstepper_run_to_new_position(stepper, nouv_position);
-    vTaskDelay(pdMS_TO_TICKS(10));
-}
-
-    // Libérez les ressources allouées au stepper (ne sera jamais appelé dans cet exemple)
-    accelstepper_destroy(stepper);
-}
 /*----TACHE DEPLACEMENT MOTEUR AVEC RUN----*/
 void stepper_task_run(void *arg)
 {
@@ -91,6 +81,7 @@ void stepper_task_run(void *arg)
             accelstepper_runToPosition(stepper);
             //accelstepper_move_to(stepper,0);
             motor_stop = false;
+            gpio_intr_enable(INT_PIN);
              
         }
         else if(motor_stop_RAZ){
@@ -193,20 +184,14 @@ static void opcua_task(void *arg)
     UA_ServerConfig_setUriName(config, appUri, "OPC_UA_Server_ESP32");
     UA_ServerConfig_setCustomHostname(config, hostName);
 
-    /* Add Information Model Objects Here */
+    /* AJOUT DES NOEUDS AU SERVEUR */
     
-    //addCurrentTemperatureDataSourceVariable(server);
-    //addRelay0ControlNode(server);
     addSTOPControlNode(server);
     addRAZControlNode(server);
     addStepperControlNode(server,stepper);
     addStepperAccControlNode(server,stepper);
     addStepperMaxSpeedControlNode(server,stepper);
-    UA_StatusCode result = addCurrentSpeed(server, stepper);
-    if(result != UA_STATUSCODE_GOOD) {
-    ESP_LOGE(TAG, "Erreur lors de l'ajout du nœud moteur pas à pas : 0x%08x", result);
-    }
-
+    addCurrentSpeed(server, stepper);
 
 
     ESP_LOGI(TAG, "Heap Left : %d", xPortGetFreeHeapSize());
@@ -311,9 +296,19 @@ void app_main(void)
     gpio_pulldown_en(INT_PIN);
     gpio_pullup_dis(INT_PIN);
     gpio_set_intr_type(INT_PIN, GPIO_INTR_POSEDGE);
+    /*gpio_config_t io_conf;
+    io_conf.intr_type = GPIO_INTR_POSEDGE; // Interruption sur front descendant
+    io_conf.mode = GPIO_MODE_INPUT;
+    io_conf.pin_bit_mask = 1ULL << INT_PIN;
+    io_conf.pull_down_en = 1; // Activer le pull-down (changez ceci en fonction de votre configuration de bouton)
+    io_conf.pull_up_en = 0;
+    gpio_config(&io_conf);*/
+     gpio_install_isr_service(0);
+    gpio_isr_handler_add(INT_PIN, interruptask, NULL);
  
   /*-------------------------------------------------*/
-    accelStepperMutex = xSemaphoreCreateMutex();
+    accelStepperMutex = xSemaphoreCreateMutex(); //wrapper
+   
     
     ++boot_count;
     
@@ -331,10 +326,10 @@ void app_main(void)
         ESP_ERROR_CHECK(nvs_flash_init());
     }
     connection_scan();
-    //xTaskCreatePinnedToCore(stepper_task, "stepper_task", 2048, (void *)stepper, 10, &INTERRUPTION, 0);
+    
     /*------------------------------*/
     xTaskCreatePinnedToCore(stepper_task_run, "stepper_task_run", 2048, (void *)stepper, 9, &INTERRUPTION, 0);
-    gpio_install_isr_service(0);
-    gpio_isr_handler_add(INT_PIN, interruptask, (void *)INT_PIN);
+    /*gpio_install_isr_service(0);
+    gpio_isr_handler_add(INT_PIN, interruptask, (void *)INT_PIN);*/
     /*------------------------------*/
 }

@@ -1,27 +1,23 @@
 #include "open62541.h"
 #include "model.h"
-#include "DHT22.h"
 #include "driver/gpio.h"
 #include "accelstepper_wrapper.h"
 
 
-
-
-
-
+/*DECLARATION VARIABLES*/
 int32_t nouv_position = 0;
 int32_t position=0;
 int32_t vit_position =0;
 UA_Float new_acc = 0.0;
 UA_Float new_speed = 0.0;
-volatile bool motor_stop_RAZ = false;
+volatile bool motor_stop_RAZ = false; 
 volatile bool motor_stop = false;
 void updateTargetPosition(int32_t new_position) {
     nouv_position = new_position;
     
 }
 
-/*------*/
+/*CONTROLE POSITION*/
 UA_StatusCode 
 readStepperPosition(UA_Server *server,
                                   const UA_NodeId *sessionId, void *sessionContext,
@@ -35,11 +31,6 @@ readStepperPosition(UA_Server *server,
         UA_LOG_WARNING(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "Stepper pointer is NULL");
         return UA_STATUSCODE_BADINTERNALERROR;
     }
-   /* if (is_moving == true){
-     position = accelstepper_current_position(stepper);}
-    else if (is_moving == false){
-    position = 0;
-    }*/
     position = accelstepper_current_position(stepper);
     UA_Variant_setScalarCopy(&dataValue->value, &position, &UA_TYPES[UA_TYPES_INT32]);
     dataValue->hasValue = true; 
@@ -56,25 +47,14 @@ setStepperPosition(UA_Server *server,
     // Obtenez la nouvelle position à partir des données
     int32_t new_position = *(UA_Int32 *)data->value.data;
 
-    //updateTargetPosition(new_position);
     updateTargetPosition(new_position);
-
-    /*----------------------------*/
     accelstepper_move_to(stepper, new_position);
-    /*-----------------------------*/
-
-
-    // Vérifiez si la position du moteur a été mise à jour correctement
-    //int32_t current_position = accelstepper_current_position(stepper);
-    //UA_StatusCode status = current_position == new_position ? UA_STATUSCODE_GOOD : UA_STATUSCODE_BADINTERNALERROR;
     return UA_STATUSCODE_GOOD;
     
 
 
 }
-/*------------------*/
 
-/*------------------------------*/
 void addStepperControlNode(UA_Server *server, AccelStepperWrapper *stepper) {
     UA_VariableAttributes attr = UA_VariableAttributes_default;
     attr.displayName = UA_LOCALIZEDTEXT("en-US", "stepmotor Position");
@@ -91,18 +71,14 @@ void addStepperControlNode(UA_Server *server, AccelStepperWrapper *stepper) {
     stepperDataSource.read = readStepperPosition;
     stepperDataSource.write = setStepperPosition;
 
-   /*UA_Server_addDataSourceVariableNode(server, currentNodeId, parentNodeId,
-                                        parentReferenceNodeId, currentName,
-                                        variableTypeNodeId, attr,
-                                        stepperDataSource, NULL, NULL);*/
-    //UA_StatusCode retval = UA_Server_addDataSourceVariableNode                                    
+                                     
     UA_Server_addDataSourceVariableNode(server, currentNodeId,
                                                         parentNodeId,
                                         parentReferenceNodeId, currentName,
                                         variableTypeNodeId,attr, stepperDataSource, (void *)stepper, NULL);
-                                                        //(void *)stepper
-    }                                                    /*-----*/
-/*--------------*/
+                                                        
+    }                                                    
+/*CONTROLE VITESSE MAX*/
 UA_StatusCode 
 readStepperMaxSpeed(UA_Server *server,
                                   const UA_NodeId *sessionId, void *sessionContext,
@@ -151,7 +127,7 @@ void addStepperMaxSpeedControlNode(UA_Server *server, AccelStepperWrapper *stepp
      
                                                         
     }                                                   
-/*-------------*/
+/*CONTROLE ACCELERATION*/
 
 UA_StatusCode 
 readStepperACC(UA_Server *server,
@@ -201,7 +177,7 @@ void addStepperAccControlNode(UA_Server *server, AccelStepperWrapper *stepper) {
      
                                                         
     }
-    /*---------------------------------*/
+    /*VITESSE ACTUELLE*/
     UA_StatusCode
     readCurrentSpeed(UA_Server*server,
                                   const UA_NodeId *sessionId, void *sessionContext,
@@ -218,7 +194,7 @@ void addStepperAccControlNode(UA_Server *server, AccelStepperWrapper *stepper) {
 
 
 
-UA_StatusCode
+void
 addCurrentSpeed(UA_Server *server, AccelStepperWrapper *stepper) {
     UA_VariableAttributes attr = UA_VariableAttributes_default;
     attr.displayName = UA_LOCALIZEDTEXT("en-US", "Vitesse actuelle");
@@ -233,7 +209,7 @@ addCurrentSpeed(UA_Server *server, AccelStepperWrapper *stepper) {
 
     UA_DataSource SpeedActDataSource;
     SpeedActDataSource.read = readCurrentSpeed;
-    return UA_Server_addDataSourceVariableNode(server, currentNodeId,
+    UA_Server_addDataSourceVariableNode(server, currentNodeId,
                                                         parentNodeId,
                                         parentReferenceNodeId, currentName,
                                         variableTypeNodeId,attr, SpeedActDataSource, (void *)stepper, NULL);

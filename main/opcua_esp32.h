@@ -16,7 +16,6 @@
 
 #include "ethernet_connect.h"
 #include "open62541.h"
-#include "DHT22.h"
 #include "model.h"
 #include "accelstepper_wrapper.h"
 #include "freertos/semphr.h"

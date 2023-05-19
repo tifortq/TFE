@@ -65,8 +65,8 @@ readCurrentSpeed(UA_Server *server,
                     const UA_NodeId *nodeId, void *nodeContext,
                     UA_Boolean sourceTimeStamp, const UA_NumericRange *range,
                     UA_DataValue *dataValue);
-
-UA_StatusCode addCurrentSpeed(UA_Server *server, AccelStepperWrapper *stepper);
+void
+ addCurrentSpeed(UA_Server *server, AccelStepperWrapper *stepper);
 
 /* STOP */
 UA_StatusCode
