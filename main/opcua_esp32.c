@@ -52,12 +52,10 @@ static void IRAM_ATTR interruptask(void* arg)
 {
         uint32_t current_time = xTaskGetTickCountFromISR();
         uint32_t elapsed_time = current_time - last_interrupt_time;
-        //gpio_intr_disable(INT_PIN);
-        //vTaskSuspend(INTERRUPTION);
-        //ESP_LOGI("Step Init", "Stepper object: %p", (void *)stepper);
+ 
         if ((current_time - last_interrupt_time) >=  pdMS_TO_TICKS(1000) && gpio_get_level(INT_PIN) == 1) {
         motor_stop = true;
-        //vTaskResume(INTERRUPTION);
+        
         last_interrupt_time = current_time;
         }
         
@@ -102,7 +100,7 @@ void stepper_task_run(void *arg)
         
     }
 
-    // Libérez les ressources allouées au stepper (ne sera jamais appelé dans cet exemple)
+    
     accelstepper_destroy(stepper);
 }
 /*--------------------*/
@@ -137,7 +135,7 @@ UA_ServerConfig_setUriName(UA_ServerConfig *uaServerConfig, const char *uri, con
 
 static void opcua_task(void *arg)
 {
-    // BufferSize's got to be decreased due to latest refactorings in open62541 v1.2rc.
+    
     step_init();
     UA_Int32 sendBufferSize = 16384;
     UA_Int32 recvBufferSize = 16384;
@@ -296,13 +294,6 @@ void app_main(void)
     gpio_pulldown_en(INT_PIN);
     gpio_pullup_dis(INT_PIN);
     gpio_set_intr_type(INT_PIN, GPIO_INTR_POSEDGE);
-    /*gpio_config_t io_conf;
-    io_conf.intr_type = GPIO_INTR_POSEDGE; // Interruption sur front descendant
-    io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.pin_bit_mask = 1ULL << INT_PIN;
-    io_conf.pull_down_en = 1; // Activer le pull-down (changez ceci en fonction de votre configuration de bouton)
-    io_conf.pull_up_en = 0;
-    gpio_config(&io_conf);*/
      gpio_install_isr_service(0);
     gpio_isr_handler_add(INT_PIN, interruptask, NULL);
  
@@ -312,7 +303,7 @@ void app_main(void)
     
     ++boot_count;
     
-    // Workaround for CVE-2019-15894
+    
     nvs_flash_init();
     if (esp_flash_encryption_enabled())
     {
@@ -329,7 +320,5 @@ void app_main(void)
     
     /*------------------------------*/
     xTaskCreatePinnedToCore(stepper_task_run, "stepper_task_run", 2048, (void *)stepper, 9, &INTERRUPTION, 0);
-    /*gpio_install_isr_service(0);
-    gpio_isr_handler_add(INT_PIN, interruptask, (void *)INT_PIN);*/
     /*------------------------------*/
 }
